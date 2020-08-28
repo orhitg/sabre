@@ -1251,20 +1251,23 @@ if __name__ == '__main__':
 
     max_buffer_size = args.max_buffer * 1000
 
-    manifest = load_json(args.movie)
-    bitrates = manifest['bitrates_kbps']
+    manifest = load_json(args.movie)           # Load json file
+    bitrates = manifest['bitrates_kbps']       # get bitrates
     utility_offset = 0 - math.log(bitrates[0]) # so utilities[0] = 0
-    utilities = [math.log(b) + utility_offset for b in bitrates]
+    utilities = [math.log(b) + utility_offset for b in bitrates]  # Calculate utility 
     if args.movie_length != None:
         l1 = len(manifest['segment_sizes_bits'])
         l2 = math.ceil(args.movie_length * 1000 / manifest['segment_duration_ms'])
         manifest['segment_sizes_bits'] *= math.ceil(l2 / l1)
         manifest['segment_sizes_bits'] = manifest['segment_sizes_bits'][0:l2]
+    
+    # ManifestInfo is namedTuple having named index
     manifest = ManifestInfo(segment_time = manifest['segment_duration_ms'],
                             bitrates     = bitrates,
                             utilities    = utilities,
                             segments     = manifest['segment_sizes_bits'])
 
+    # Network Information 
     network_trace = load_json(args.network)
     network_trace = [NetworkPeriod(time      = p['duration_ms'],
                                    bandwidth = p['bandwidth_kbps'] * args.network_multiplier,
@@ -1272,21 +1275,22 @@ if __name__ == '__main__':
                      for p in network_trace]
 
 
-    buffer_size = args.max_buffer * 1000
-    gamma_p = args.gamma_p
+    buffer_size = args.max_buffer * 1000   # default value 25
+    gamma_p = args.gamma_p                 # default value 5
 
     config = {'buffer_size': buffer_size,
               'gp': gamma_p,
-              'abr_osc': args.abr_osc,
-              'abr_basic': args.abr_basic,
-              'no_ibr': args.no_insufficient_buffer_rule}
+              'abr_osc': args.abr_osc,     # Set ABR to minimize oscillations
+              'abr_basic': args.abr_basic, # Set ABR to BASIC (ABR strategy dependant)
+              'no_ibr': args.no_insufficient_buffer_rule}   # Disable Insufficient Buffer Rule.
     abr_list[args.abr].use_abr_o = args.abr_osc
     abr_list[args.abr].use_abr_u = not args.abr_osc
-    abr = abr_list[args.abr](config)
+    abr = abr_list[args.abr](config)       # Create an object of called ABR with para/args of config.
     network = NetworkModel(network_trace)
 
+    # Skip video
     if args.replace == 'left':
-        replacer = Replace(0)
+        replacer = Replace(0)      # Need to understand these options which one is forward and backward
     elif args.replace == 'right':
         replacer = Replace(1)
     else:
@@ -1302,8 +1306,8 @@ if __name__ == '__main__':
     download_time = download_metric.time - download_metric.time_to_first_bit
     startup_time = download_time
     buffer_contents.append(download_metric.quality)
-    t = download_metric.size / download_time
-    l = download_metric.time_to_first_bit
+    t = download_metric.size / download_time          # time taken to download
+    l = download_metric.time_to_first_bit             # latency in receiving first bit
     throughput_history.push(download_time, t, l)
     #print('%d,%d -> %d,%d' % (t, l, throughput, latency))
     total_play_time += download_metric.time
